@@ -1,12 +1,9 @@
-ARCHIVED
-=========
-
-**MLB has blacked-out my team across Canada, so I'm not able to use their service. I'd be happy to transfer this repo over to a new owner if someone is interested. I won't be putting any further effort into it.**
-
-
-
 mlbv - MLB stream viewer
 ========================
+
+Note: This is a forked version of [kmac/mlbv](https://github.com/kmac/mlbv) which is an archived project at this point. This has fixed the issues with MLB.tv authorization related to PKCE changes MLB implemented. I do not plan any active development on this but I will try and keep up with any changes related to outages until hopefully somebody takes over the original mlbv project again.
+
+----
 
 `mlbv` is a command-line interface to the MLB.tv service. It's primary purpose is to allow you to view game
 streams on linux, including live streams, with a valid MLB tv subscription.  It also allows you to view game
