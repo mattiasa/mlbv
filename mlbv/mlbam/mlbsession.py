@@ -29,7 +29,7 @@ USER_AGENT = (
 PLATFORM = "macintosh"
 BAM_SDK_VERSION = "3.4"
 MLB_API_KEY_URL = "https://www.mlb.com/tv/g490865/"
-API_KEY_RE = re.compile(r'"apiKey":"([^"]+)"')
+API_KEY_RE = re.compile(r'"x-api-key","value":"([^"]+)"')
 CLIENT_API_KEY_RE = re.compile(r'"clientApiKey":"([^"]+)"')
 OKTA_CLIENT_ID_RE = re.compile("""production:{clientId:"([^"]+)",""")
 MLB_OKTA_URL = "https://www.mlbstatic.com/mlb.com/vendor/mlb-okta/mlb-okta.js"
@@ -110,8 +110,8 @@ class MLBSession(session.Session):
         # API key
         scripts = data.xpath(".//script")
         for script in scripts:
-            if script.text and "apiKey" in script.text:
-                self._state["api_key"] = self.API_KEY_RE.search(script.text).groups()[0]
+            if script.text and "x-api-key" in script.text:
+                self._state["api_key"] = API_KEY_RE.search(script.text).groups()[0]
             if script.text and "clientApiKey" in script.text:
                 self._state["client_api_key"] = CLIENT_API_KEY_RE.search(
                     script.text
