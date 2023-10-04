@@ -23,6 +23,7 @@ streamlink = "^6.1.0"
 lxml = "^4.6.5"
 python-dateutil = "^2.8.1"
 flake8 = "^3.9.2"
+pytz = "^2023.3.post1"
 
 [tool.poetry.dev-dependencies]
 
