@@ -120,7 +120,7 @@ This project incorporates some code modified from the following projects:
 `mlbv` requires the following software to be installed and configured:
 
 * python 
-    - python v3 (tested with 3.6) 
+    - python v3 (tested with 3.12 thanks to work by [kylefmohr](https://github.com/kylefmohr)
 * python modules (installed by `pip install`):
     - [requests](http://python-requests.org/) module 
     - [python-dateutil](https://dateutil.readthedocs.io/en/stable/) module
@@ -130,31 +130,26 @@ This project incorporates some code modified from the following projects:
     - Note: player can be specified via config file. If player is not on the system path you may need to
       setup the full path in the config file.
 
-This software is tested under linux. It should work under Windows or Mac with the pre-requisites installed,
+This software is tested under OSX. It should work under Windows or Linux with the pre-requisites installed,
 but may require minor tweaks (bug reports are welcome).
 
+## 1. Installation or updates
 
-## 1. Installation
+Since this is a project that was inherited from another developer we do not have access currently to update `mlbv` on pypi.org. Because of that you will need to check out the code directly from Github to get the latest version. The older version can be found at [mlbv](https://pypi.org/project/mlbv)
 
-### Via pip
+1. Clone the latest version: `git clone https://github.com/adam-ducker/mlbv`
+2. Switch to `mlbv` directory: `cd mlbv`
+3. Run `pip install .`
 
-This project is on the Python Package Index (Pypi) at [mlbv](https://pypi.org/project/mlbv), and can be
-installed using `pip`.
+To update to a newer version
 
-1. Run `pip install mlbv`
-2. Run `mlbv --init` to create a configuration directory and populate the `config` file
-   with defaults and the required MLB.tv username and password. See the next section for more details.
-
-### Archlinux
-
-Install `mlbv` via the AUR.
-
+1. Make sure you're in the `mlbv` directory
+2. Run `git pull` to get the latest version from Github
+3. Run `pip install .` to replace the existing version and remove the old
 
 ## 2. Configuration
 
-After installing, run:
-
-    mlbv --init
+After installing, run: `mlbv --init`
 
 This will create the initial config file/directory and populate it with the prompted MLB.tv username and password.
 The `config` file will be located at `$HOME/.config/mlbv/config`. Directories are created if necessary.
