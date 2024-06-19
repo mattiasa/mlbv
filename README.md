@@ -120,7 +120,7 @@ This project incorporates some code modified from the following projects:
 `mlbv` requires the following software to be installed and configured:
 
 * python 
-    - python v3 (tested with 3.12 thanks to work by [kylefmohr](https://github.com/kylefmohr)
+    - python v3 (tested with 3.12 thanks to work by [kylefmohr](https://github.com/kylefmohr))
 * python modules (installed by `pip install`):
     - [requests](http://python-requests.org/) module 
     - [python-dateutil](https://dateutil.readthedocs.io/en/stable/) module
