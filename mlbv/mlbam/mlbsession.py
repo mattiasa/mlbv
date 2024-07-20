@@ -44,6 +44,7 @@ GAME_CONTENT_URL_TEMPLATE = "http://statsapi.mlb.com/api/v1/game/{game_id}/conte
 STREAM_URL_TEMPLATE = (
     "https://edge.svcs.mlb.com/media/{media_id}/scenarios/browser~csai"
 )
+MEDIA_GATEWAY_GRAPHQL_URL = "https://media-gateway.mlb.com/graphql"
 AIRINGS_URL_TEMPLATE = (
     "https://search-api-mlbtv.mlb.com/svc/search/v2/graphql/persisted/query/"
     "core/Airings?variables={{%22partnerProgramIds%22%3A[%22{game_id}%22]}}"
@@ -245,23 +246,26 @@ class MLBSession(session.Session):
 
         device_access_token = token_response["access_token"]
 
-        # Create session
-        session_headers = {
-            "Authorization": device_access_token,
-            "User-agent": USER_AGENT,
-            "Origin": "https://www.mlb.com",
-            "Accept": "application/vnd.session-service+json; version=1",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Accept-Language": "en-US,en;q=0.5",
-            "x-bamsdk-version": BAM_SDK_VERSION,
-            "x-bamsdk-platform": PLATFORM,
-            "Content-type": "application/json",
-            "TE": "Trailers",
-        }
-        session_response = self.session.get(
-            BAM_SESSION_URL, headers=session_headers
-        ).json()
-        device_id = session_response["device"]["id"]
+        # # Create session
+        # session_headers = {
+        #     "Authorization": device_access_token,
+        #     "User-agent": USER_AGENT,
+        #     "Origin": "https://www.mlb.com",
+        #     "Accept": "application/vnd.session-service+json; version=1",
+        #     "Accept-Encoding": "gzip, deflate, br",
+        #     "Accept-Language": "en-US,en;q=0.5",
+        #     "x-bamsdk-version": BAM_SDK_VERSION,
+        #     "x-bamsdk-platform": PLATFORM,
+        #     "Content-type": "application/json",
+        #     "TE": "Trailers",
+        # }
+        # session_response = self.session.get(
+        #     BAM_SESSION_URL, headers=session_headers
+        # ).json()
+        # import ipdb; ipdb.set_trace()
+        # device_id = session_response["device"]["id"]
+
+        device_id, session_id = self._create_session()
 
         # Entitlement token
         entitlement_params = {"os": PLATFORM, "did": device_id, "appname": "mlbtv_web"}
@@ -341,3 +345,32 @@ class MLBSession(session.Session):
             return None
         stream_url = stream["stream"]["complete"]
         return stream_url
+
+    def _create_session(self):
+        headers = {
+
+            "Authorization": f"Bearer {self._state['OKTA_ACCESS_TOKEN']}",
+            "User-agent": USER_AGENT,
+            #            "Accept": "application/vnd.media-service+json; version=1",
+            "x-bamsdk-version": BAM_SDK_VERSION,
+            "x-bamsdk-platform": PLATFORM,
+            "origin": "https://www.mlb.com",
+        }
+
+        # Init session
+        init_session_op = {
+            "operationName": "initSession",
+            "query": "mutation initSession($device: InitSessionInput!, $clientType: ClientType!, $experience: ExperienceTypeInput) {\n    initSession(device: $device, clientType: $clientType, experience: $experience) {\n        deviceId\n        sessionId\n        entitlements {\n            code\n        }\n        location {\n            countryCode\n            regionName\n            zipCode\n            latitude\n            longitude\n        }\n        clientExperience\n        features\n    }\n  }",
+            "variables": {
+                "device": {},
+                "clientType": "WEB"
+            }
+        }
+
+        r = self.session.post(MEDIA_GATEWAY_GRAPHQL_URL, json=init_session_op, headers=headers)
+        j = r.json()
+        print(j)
+        r.raise_for_status()
+
+        session = j['data']['initSession']
+        return session['deviceId'], session['sessionId']
