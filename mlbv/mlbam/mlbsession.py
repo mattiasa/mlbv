@@ -313,23 +313,71 @@ class MLBSession(session.Session):
         self._state["access_token"] = token_response["access_token"]
         self.save()
 
+    def get_game_content(self, game_pk):
+        self._refresh_access_token()
+
+        headers = {
+
+            "Authorization": f"Bearer {self._state['OKTA_ACCESS_TOKEN']}",
+            "User-agent": USER_AGENT,
+            #            "Accept": "application/vnd.media-service+json; version=1",
+            "x-bamsdk-version": BAM_SDK_VERSION,
+            "x-bamsdk-platform": PLATFORM,
+            "origin": "https://www.mlb.com",
+        }
+
+        content_search_op = {
+            "operationName": "contentSearch",
+            "query": "query contentSearch($query: String!, $limit: Int = 10, $skip: Int = 0) {\n    contentSearch(\n        query: $query\n        limit: $limit\n        skip: $skip\n    ) {\n        total\n        content {\n            audioTracks {\n                language\n                name\n                renditionName\n                trackType\n            }\n            contentId\n            mediaId\n            contentType\n            contentRestrictions\n            contentRestrictionDetails {\n                code\n                details\n            }\n            sportId\n            feedType\n            callSign\n            mediaState {\n                state\n                mediaType\n                contentExperience\n            }\n            fields {\n                name\n                value\n            }\n            milestones {\n                milestoneType\n                relativeTime\n                absoluteTime\n                title\n                keywords {\n                    name\n                    value\n                }\n            }\n        }\n    }\n  }",
+            "variables": {
+                "limit": 16,
+                "query": f"GamePk={game_pk} AND ContentType=\"GAME\" RETURNING HomeTeamId, HomeTeamName, AwayTeamId, AwayTeamName, Date, MediaType, ContentExperience, MediaState, PartnerCallLetters"
+            }
+        }
+
+        r = self.session.post(MEDIA_GATEWAY_GRAPHQL_URL, json=content_search_op, headers=headers)
+        j = r.json()
+        print(j)
+        r.raise_for_status()
+
+        return j['data']['contentSearch']['content']
+
     # Override
     def lookup_stream_url(self, game_pk, media_id):
         """game_pk: game_pk
         media_id: mediaPlaybackId
         """
         stream_url = None
+
+        self._refresh_access_token()
+
         headers = {
-            "Authorization": self.access_token,
+
+            "Authorization": f"Bearer {self._state['OKTA_ACCESS_TOKEN']}",
             "User-agent": USER_AGENT,
-            "Accept": "application/vnd.media-service+json; version=1",
+#            "Accept": "application/vnd.media-service+json; version=1",
             "x-bamsdk-version": BAM_SDK_VERSION,
             "x-bamsdk-platform": PLATFORM,
             "origin": "https://www.mlb.com",
         }
-        response = self.session.get(
-            STREAM_URL_TEMPLATE.format(media_id=media_id), headers=headers
-        )
+
+        device_id, session_id = self._create_session()
+
+        # playback session
+        playback_session_op = {
+            "operationName": "initPlaybackSession",
+            "query": "mutation initPlaybackSession(\n        $adCapabilities: [AdExperienceType]\n        $mediaId: String!\n        $deviceId: String!\n        $sessionId: String!\n        $quality: PlaybackQuality\n    ) {\n        initPlaybackSession(\n            adCapabilities: $adCapabilities\n            mediaId: $mediaId\n            deviceId: $deviceId\n            sessionId: $sessionId\n            quality: $quality\n        ) {\n            playbackSessionId\n            playback {\n                url\n                token\n                expiration\n                cdn\n            }\n            adScenarios {\n                adParamsObj\n                adScenarioType\n                adExperienceType\n            }\n            adExperience {\n                adExperienceTypes\n                adEngineIdentifiers {\n                    name\n                    value\n                }\n                adsEnabled\n            }\n            heartbeatInfo {\n                url\n                interval\n            }\n            trackingObj\n        }\n    }",
+            "variables": {
+                "adCapabilities": ["GOOGLE_STANDALONE_AD_PODS"],
+                "deviceId": device_id,
+                "mediaId": media_id,
+                "quality": "PLACEHOLDER",
+                "sessionId": session_id
+            }
+        }
+
+        response = self.session.post(MEDIA_GATEWAY_GRAPHQL_URL, json=playback_session_op, headers=headers)
+
         if response is not None and config.SAVE_JSON_FILE:
             output_filename = "stream"
             json_file = os.path.join(
@@ -343,7 +391,7 @@ class MLBSession(session.Session):
         if "errors" in stream and stream["errors"]:
             LOG.error("Could not load stream\n%s", stream)
             return None
-        stream_url = stream["stream"]["complete"]
+        stream_url = stream['data']['initPlaybackSession']['playback']['url']
         return stream_url
 
     def _create_session(self):
