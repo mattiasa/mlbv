@@ -51,14 +51,17 @@ def select_feed_for_team(game_rec, team_code, feedtype=None):
     return None, None, None
 
 
-
-
 def select_feed_for_team_new(game_feeds, team_code, feedtype=None):
-    # import ipdb; ipdb.set_trace()
     found = None
     wanted_team_id = mlbapidata.get_team_id(team_code)
 
-    for game_feed in game_feeds:
+    video_feeds = [x for x in game_feeds if x['mediaState']['mediaType'] == 'VIDEO']
+
+    if not video_feeds:
+        LOG.info("No video feeds available")
+        return None, None, None
+
+    for game_feed in video_feeds:
         # Ignore non-video
         if not game_feed['mediaState']['mediaType'] == 'VIDEO':
             continue
@@ -82,40 +85,12 @@ def select_feed_for_team_new(game_feeds, team_code, feedtype=None):
                 found = game_feed
                 break
 
-    if found:
-        return found['mediaId'], found['mediaState']['state'], found['contentId']
+    if not found:
+        # the prefered feed doesn't exist so pick the first one
+        found = video_feeds[0]
 
-    return None, None, None
+    return found['mediaId'], found['mediaState']['state'], found['contentId']
 
-    if game_rec["away"]["abbrev"] == team_code:
-        found = True
-        if feedtype is None and "away" in game_rec["feed"]:
-            feedtype = "away"  # assume user wants their team's feed
-    elif game_rec["home"]["abbrev"] == team_code:
-        found = True
-        if feedtype is None and "home" in game_rec["feed"]:
-            feedtype = "home"  # assume user wants their team's feed
-    if found:
-        if feedtype is None:
-            LOG.info(
-                "Default (home/away) feed not found: choosing first available feed"
-            )
-            if game_rec["feed"]:
-                feedtype = list(game_rec["feed"].keys())[0]
-                LOG.info("Chose '%s' feed (override with --feed option)", feedtype)
-        if feedtype not in game_rec["feed"]:
-            LOG.error("Feed is not available: %s", feedtype)
-            return None, None, None
-        if "contentId" in game_rec["feed"][feedtype]:
-            content_id = game_rec["feed"][feedtype]["contentId"]
-        else:
-            content_id = None
-        return (
-            game_rec["feed"][feedtype]["mediaPlaybackId"],
-            game_rec["feed"][feedtype]["mediaState"],
-            content_id,
-        )
-    return None, None, None
 
 def find_highlight_url_for_team(game_rec, feedtype):
     if feedtype not in config.HIGHLIGHT_FEEDTYPES:

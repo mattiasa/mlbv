@@ -142,7 +142,7 @@ def streamlink(
     video_player = config.CONFIG.parser["video_player"]
     streamlink_cmd = [
         "streamlink",
-        "--http-no-ssl-verify",
+#        "--http-no-ssl-verify",
         "--http-cookie",
         "Authorization=" + mlb_session.access_token,
         "--http-header",
