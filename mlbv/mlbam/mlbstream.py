@@ -58,12 +58,32 @@ def select_feed_for_team_new(game_feeds, team_code, feedtype=None):
     video_feeds = [x for x in game_feeds if x['mediaState']['mediaType'] == 'VIDEO']
 
     if not video_feeds:
-        LOG.info("No video feeds available")
+        LOG.info("No video feeds returned")
         return None, None, None
+
+    available_feeds = []
 
     for game_feed in video_feeds:
         # Ignore non-video
         if not game_feed['mediaState']['mediaType'] == 'VIDEO':
+            continue
+
+        # Ignore feeds which are off
+        if game_feed['mediaState']['state'] == 'OFF':
+            continue
+        available_feeds.append(game_feed)
+
+    if not available_feeds:
+        LOG.info("No video feeds available")
+        return None, None, None
+
+    for game_feed in available_feeds:
+        # Ignore non-video
+        if not game_feed['mediaState']['mediaType'] == 'VIDEO':
+            continue
+
+        # Ignore feeds which are off
+        if game_feed['mediaState']['state'] == 'OFF':
             continue
 
         if feedtype:
@@ -86,8 +106,8 @@ def select_feed_for_team_new(game_feeds, team_code, feedtype=None):
                 break
 
     if not found:
-        # the prefered feed doesn't exist so pick the first one
-        found = video_feeds[0]
+        # the prefered feed doesn't exist so pick the first available one
+        found = available_feeds[0]
 
     return found['mediaId'], found['mediaState']['state'], found['contentId']
 
