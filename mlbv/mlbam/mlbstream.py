@@ -12,6 +12,7 @@ import mlbv.mlbam.common.config as config
 import mlbv.mlbam.common.request as request
 import mlbv.mlbam.common.stream as stream
 import mlbv.mlbam.common.util as util
+import mlbv.mlbam.mlbapidata as mlbapidata
 
 
 LOG = logging.getLogger(__name__)
@@ -48,6 +49,67 @@ def select_feed_for_team(game_rec, team_code, feedtype=None):
             content_id,
         )
     return None, None, None
+
+
+def select_feed_for_team_new(game_feeds, team_code, feedtype=None):
+    found = None
+    wanted_team_id = mlbapidata.get_team_id(team_code)
+
+    video_feeds = [x for x in game_feeds if x['mediaState']['mediaType'] == 'VIDEO']
+
+    if not video_feeds:
+        LOG.info("No video feeds returned")
+        return None, None, None
+
+    available_feeds = []
+
+    for game_feed in video_feeds:
+        # Ignore non-video
+        if not game_feed['mediaState']['mediaType'] == 'VIDEO':
+            continue
+
+        # Ignore feeds which are off
+        if game_feed['mediaState']['state'] == 'OFF':
+            continue
+        available_feeds.append(game_feed)
+
+    if not available_feeds:
+        LOG.info("No video feeds available")
+        return None, None, None
+
+    for game_feed in available_feeds:
+        # Ignore non-video
+        if not game_feed['mediaState']['mediaType'] == 'VIDEO':
+            continue
+
+        # Ignore feeds which are off
+        if game_feed['mediaState']['state'] == 'OFF':
+            continue
+
+        if feedtype:
+            if feedtype.upper() == game_feed['feedType']:
+                found = game_feed
+                break
+        else:
+            if (
+                game_feed['feedType'] == 'AWAY' and
+                dict(name='AwayTeamId', value=str(wanted_team_id)) in game_feed.get('fields', [])
+            ):
+                found = game_feed
+                break
+
+            if (
+                game_feed['feedType'] == 'HOME' and
+                dict(name='HomeTeamId', value=str(wanted_team_id)) in game_feed.get('fields', [])
+            ):
+                found = game_feed
+                break
+
+    if not found:
+        # the prefered feed doesn't exist so pick the first available one
+        found = available_feeds[0]
+
+    return found['mediaId'], found['mediaState']['state'], found['contentId']
 
 
 def find_highlight_url_for_team(game_rec, feedtype):
@@ -97,6 +159,13 @@ def play_stream(
     inning_ident,
     is_multi_highlight=False,
 ):
+#    import json
+#    print(json.dumps(game_rec, default=str))
+
+    game_pk = game_rec['game_pk']
+
+
+
     if game_rec["doubleHeader"] != "N":
         LOG.info("Selected game number %s of doubleheader", game_rec["gameNumber"])
     if feedtype is not None and feedtype in config.HIGHLIGHT_FEEDTYPES:
@@ -122,8 +191,10 @@ def play_stream(
 
     mlb_session = mlbsession.MLBSession()
 
-    media_playback_id, media_state, content_id = select_feed_for_team(
-        game_rec, team_to_play, feedtype
+    game_content = mlb_session.get_game_content(game_pk)
+    print(game_content)
+    media_playback_id, media_state, content_id = select_feed_for_team_new(
+        game_content, team_to_play, feedtype
     )
     if media_playback_id is None:
         LOG.error("No stream URL found")
