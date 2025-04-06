@@ -337,7 +337,7 @@ class MLBSession(session.Session):
 
         r = self.session.post(MEDIA_GATEWAY_GRAPHQL_URL, json=content_search_op, headers=headers)
         j = r.json()
-        print(j)
+        # print(j)
         r.raise_for_status()
 
         return j['data']['contentSearch']['content']
@@ -417,7 +417,7 @@ class MLBSession(session.Session):
 
         r = self.session.post(MEDIA_GATEWAY_GRAPHQL_URL, json=init_session_op, headers=headers)
         j = r.json()
-        print(j)
+        # print(j)
         r.raise_for_status()
 
         session = j['data']['initSession']

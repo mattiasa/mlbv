@@ -295,50 +295,81 @@ class GameDataRetriever:
             if game_rec["abstractGameState"] == "Preview":
                 continue
 
-            # epg
-            if "media" in game["content"] and "epg" in game["content"]["media"]:
-                for media in game["content"]["media"]["epg"]:
-                    if media["title"] == "MLBTV":
-                        for stream in media["items"]:
-                            if (
-                                stream["mediaFeedType"] != "COMPOSITE"
-                                and stream["mediaFeedType"] != "ISO"
-                            ):
-                                feedtype = str(
-                                    stream["mediaFeedType"]
-                                ).lower()  # home, away, national, french, ...
-                                # Fix Issue #23 - resumed games show up on original day media feeds, with multiple entries for home and away
-                                # Handle it by naming the feed away-resume, home-resume, etc
+            # broadcasts - these have replaced epg streams
+            if "broadcasts" in game:
+                for broadcast in game["broadcasts"]:
+                    feedtype = None
+                    if broadcast["type"] == "TV":
+                        if broadcast["isNational"]:
+                            if broadcast["homeAway"] == "home":
+                                feedtype = "national"
+                        else:
+                            feedtype = broadcast["homeAway"]
+                    if feedtype:
+                        game_rec["feed"][feedtype] = dict()
+
+                        game_rec["feed"][feedtype]["mediaPlaybackId"] = str(
+                            broadcast["mediaId"]
+                        )
+                        game_rec["feed"][feedtype]["mediaState"] = str(
+                            broadcast["mediaState"]
+                        )
+                        game_rec["feed"][feedtype]["eventId"] = str(
+                            broadcast["id"]
+                        )
+                        game_rec["feed"][feedtype]["callLetters"] = str(
+                            broadcast["callSign"]
+                        )
+                        # content id ?
+
+            # epg may be gone for good but leaving for now          
+            # epgAlternate still exists for condensed and recaps
+            if "media" in game["content"]:
+
+                if "epg" in game["content"]["media"]:
+                    for media in game["content"]["media"]["epg"]:
+                        if media["title"] == "MLBTV":
+                            for stream in media["items"]:
                                 if (
-                                    "resumeDate" in game_rec
-                                    or "resumedFrom" in game_rec
+                                    stream["mediaFeedType"] != "COMPOSITE"
+                                    and stream["mediaFeedType"] != "ISO"
                                 ):
-                                    resume_feedtype = feedtype + "-resume"
-                                    if resume_feedtype not in game_rec["feed"]:
-                                        feedtype = resume_feedtype
-                                else:
-                                    # Maybe there is other cases where there is multiple home/away feeds?
-                                    extrafeednum = 2
-                                    while feedtype in game_rec["feed"]:
-                                        feedtype += "{}".format(extrafeednum)
-                                game_rec["feed"][feedtype] = dict()
-                                if "mediaId" in stream:
-                                    game_rec["feed"][feedtype]["mediaPlaybackId"] = str(
-                                        stream["mediaId"]
-                                    )
-                                    if "contentId" in stream:
-                                        game_rec["feed"][feedtype]["contentId"] = str(
-                                            stream["contentId"]
+                                    feedtype = str(
+                                        stream["mediaFeedType"]
+                                    ).lower()  # home, away, national, french, ...
+                                    # Fix Issue #23 - resumed games show up on original day media feeds, with multiple entries for home and away
+                                    # Handle it by naming the feed away-resume, home-resume, etc
+                                    if (
+                                        "resumeDate" in game_rec
+                                        or "resumedFrom" in game_rec
+                                    ):
+                                        resume_feedtype = feedtype + "-resume"
+                                        if resume_feedtype not in game_rec["feed"]:
+                                            feedtype = resume_feedtype
+                                    else:
+                                        # Maybe there is other cases where there is multiple home/away feeds?
+                                        extrafeednum = 2
+                                        while feedtype in game_rec["feed"]:
+                                            feedtype += "{}".format(extrafeednum)
+                                    game_rec["feed"][feedtype] = dict()
+                                    if "mediaId" in stream:
+                                        game_rec["feed"][feedtype]["mediaPlaybackId"] = str(
+                                            stream["mediaId"]
                                         )
-                                    game_rec["feed"][feedtype]["mediaState"] = str(
-                                        stream["mediaState"]
-                                    )
-                                    game_rec["feed"][feedtype]["eventId"] = str(
-                                        stream["id"]
-                                    )
-                                    game_rec["feed"][feedtype]["callLetters"] = str(
-                                        stream["callLetters"]
-                                    )
+                                        if "contentId" in stream:
+                                            game_rec["feed"][feedtype]["contentId"] = str(
+                                                stream["contentId"]
+                                            )
+                                        game_rec["feed"][feedtype]["mediaState"] = str(
+                                            stream["mediaState"]
+                                        )
+                                        game_rec["feed"][feedtype]["eventId"] = str(
+                                            stream["id"]
+                                        )
+                                        game_rec["feed"][feedtype]["callLetters"] = str(
+                                            stream["callLetters"]
+                                        )
+
                 if "epgAlternate" in game["content"]["media"]:
                     for media in game["content"]["media"]["epgAlternate"]:
                         if media["title"] == "Extended Highlights":

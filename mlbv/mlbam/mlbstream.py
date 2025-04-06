@@ -192,7 +192,7 @@ def play_stream(
     mlb_session = mlbsession.MLBSession()
 
     game_content = mlb_session.get_game_content(game_pk)
-    print(game_content)
+    # print(game_content)
     media_playback_id, media_state, content_id = select_feed_for_team_new(
         game_content, team_to_play, feedtype
     )
