@@ -301,8 +301,7 @@ class GameDataRetriever:
                     feedtype = None
                     if broadcast["type"] == "TV" and broadcast["availableForStreaming"]:
                         if broadcast["isNational"]:
-                            if broadcast["homeAway"] == "home":
-                                feedtype = "national"
+                            feedtype = "national"
                         else:
                             feedtype = broadcast["homeAway"]
                     if feedtype:
