@@ -75,6 +75,9 @@ class MLBSession(session.Session):
     def __init__(self):
         super().__init__(USER_AGENT, PLATFORM)
 
+    def login(self):
+        pass
+
     def get_okta_code(self, code_challenge):
         state_param = gen_random_string(64)
         nonce_param = gen_random_string(64)
