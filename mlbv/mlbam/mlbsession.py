@@ -2,7 +2,9 @@
 mlbsession
 """
 import datetime
+import http
 import io
+import json
 import logging
 import os
 import random
@@ -10,6 +12,7 @@ import re
 import string
 import base64
 import hashlib
+import urllib
 
 import lxml
 import lxml.etree
@@ -72,22 +75,6 @@ class MLBSession(session.Session):
     def __init__(self):
         super().__init__(USER_AGENT, PLATFORM)
 
-    def login(self):
-        authn_params = {
-            "username": config.CONFIG.parser["username"],
-            "password": config.CONFIG.parser["password"],
-            "options": {
-                "multiOptionalFactorEnroll": False,
-                "warnBeforePasswordExpired": True,
-            },
-        }
-        LOG.debug("login: %s", authn_params["username"])
-        authn_response = self.session.post(AUTHN_URL, json=authn_params).json()
-        LOG.debug("login: authn_response: %s", authn_response)
-        self.session_token = authn_response["sessionToken"]
-        self._state["session_token_time"] = str(datetime.datetime.now(tz=pytz.UTC))
-        self.save()
-
     def get_okta_code(self, code_challenge):
         state_param = gen_random_string(64)
         nonce_param = gen_random_string(64)
@@ -121,37 +108,36 @@ class MLBSession(session.Session):
         LOG.debug("get_okta_code failed: %s", authz_content)
         raise Exception(f"could not authenticate: {authz_content}")
 
-    def get_okta_token(self, code_verifier, code):
-        token_data = {
-            "client_id": self._state["okta_client_id"],
-            "redirect_uri": "https://www.mlb.com/login",
-            "grant_type": "authorization_code",
-            "code_verifier": code_verifier,
-            "code": code,
+    def get_okta_token(self):
+
+        # For some reason, and I really don't understand why, this doesn't work with requests. Okta just returns
+        # status 451. It works if I use http.client instead.
+
+        authn_params = {
+            "username": config.CONFIG.parser["username"],
+            "password": config.CONFIG.parser["password"],
+            "grant_type": "password",
+            "scope": "openid offline_access",
+            "client_id": "0oa3e1nutA1HLzAKG356"
         }
 
-        token_headers = {
-            "Accept": "application/json",
-            "Content-type": "application/x-www-form-urlencoded",
+        body = urllib.parse.urlencode(authn_params)
+
+        headers = {
+            "accept": "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "user-agent": "okhttp/3.12.1"
         }
 
-        token_response = self.session.post(OKTA_TOKEN_URL, headers=token_headers, data=token_data)
+        conn = http.client.HTTPSConnection("ids.mlb.com")
+        conn.request("POST", "/oauth2/aus1m088yK07noBfh356/v1/token", body, headers)
+        response = conn.getresponse()
 
-        try:
-            token_json = token_response.json()
-        except Exception as e:
-            LOG.error("Failed to parse token response JSON: %s", token_response.text)
-            raise
+        if response.status != 200:
+            raise Exception("Could not authenticate with password: %s %s" % (response.status, response.reason))
 
-        if config.VERBOSE:
-            LOG.debug("get_okta_token response: %s", token_json)
-
-        if "access_token" in token_json:
-            return token_json
-        else:
-            LOG.error("No access_token in token response")
-            LOG.debug("No access_token in token response: %s", token_response.text)
-            raise Exception(f"could not authenticate: {token_response.text}")
+        data = response.read()
+        return json.loads(data)
 
     def _refresh_access_token(self, clear_token=False):
         if clear_token:
@@ -172,18 +158,7 @@ class MLBSession(session.Session):
         content = self.session.get(MLB_OKTA_URL).text
         self._state["okta_client_id"] = OKTA_CLIENT_ID_RE.search(content).groups()[0]
 
-        self.login()
-
-        code_verifier = generate_code_verifier()
-        code_challenge = generate_code_challenge(code_verifier)
-
-        try:
-            self.okta_access_code = self.get_okta_code(code_challenge)
-        except SGProviderLoginException:
-            self.login()
-            self.okta_access_code = self.get_okta_code(code_challenge)
-
-        token_json = self.get_okta_token(code_verifier, self.okta_access_code)
+        token_json = self.get_okta_token()
 
         self._state["OKTA_ACCESS_TOKEN"] = token_json["access_token"]
         self._state["access_token_expiry"] = str(
