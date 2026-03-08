@@ -39,6 +39,7 @@ FEEDTYPE_MAP = {
     "in_market_home": "imh",
     "condensed": "cnd",
     "recap": "rcp",
+    "audio": "aud",
     # 'audio-away': 'aud-a',
     # 'audio-home': 'aud-h',
 }

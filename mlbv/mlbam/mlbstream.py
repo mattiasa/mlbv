@@ -56,41 +56,29 @@ def select_feed_for_team_new(game_feeds, team_code, feedtype=None):
     wanted_team_id = mlbapidata.get_team_id(team_code)
 
     video_feeds = [x for x in game_feeds if x['mediaState']['mediaType'] == 'VIDEO']
+    audio_feeds = [x for x in game_feeds if x['mediaState']['mediaType'] == 'AUDIO']
 
-    if not video_feeds:
-        LOG.info("No video feeds returned")
+    if feedtype and feedtype.startswith("audio"):
+        media_feeds = audio_feeds
+    else:
+        media_feeds = video_feeds
+
+    if not media_feeds:
+        LOG.info("No feeds available")
         return None, None, None
 
-    available_feeds = []
-
-    for game_feed in video_feeds:
-        # Ignore non-video
-        if not game_feed['mediaState']['mediaType'] == 'VIDEO':
-            continue
-
-        # Ignore feeds which are off
-        if game_feed['mediaState']['state'] == 'OFF':
-            continue
-        available_feeds.append(game_feed)
-
-    if not available_feeds:
-        LOG.info("No video feeds available")
-        return None, None, None
-
-    for game_feed in available_feeds:
-        # Ignore non-video
-        if not game_feed['mediaState']['mediaType'] == 'VIDEO':
-            continue
-
+    for game_feed in media_feeds:
         # Ignore feeds which are off
         if game_feed['mediaState']['state'] == 'OFF':
             continue
 
-        if feedtype:
+        # If the user requested a particular feed
+        if feedtype and feedtype != "audio":
             if feedtype.upper() == game_feed['feedType']:
                 found = game_feed
                 break
         else:
+            # Pick the video or audio feed of the team the user requested
             if (
                 game_feed['feedType'] == 'AWAY' and
                 dict(name='AwayTeamId', value=str(wanted_team_id)) in game_feed.get('fields', [])
@@ -107,7 +95,7 @@ def select_feed_for_team_new(game_feeds, team_code, feedtype=None):
 
     if not found:
         # the prefered feed doesn't exist so pick the first available one
-        found = available_feeds[0]
+        found = media_feeds[0]
 
     return found['mediaId'], found['mediaState']['state'], found['contentId']
 
